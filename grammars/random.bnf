@@ -1,0 +1,191 @@
+/**
+ * Lang: BNF Grammar.
+ *
+ * Lex grammar is in: examples/lang.lex
+ * Test source code is in: examples/test.lang
+ *
+ * How to run:
+ *
+ *   ./bin/syntax \
+ *     --grammar examples/lang.bnf \
+ *     --lex examples/lang.lex \
+ *     --mode lalr1 \
+ *     --file examples/test.lang
+ */
+
+%{
+
+/**
+ * Creates generic binary expression node.
+ */
+function BinaryExpression(operator, left, right, loc) {
+  return {
+    type: 'BinaryExpression',
+    operator,
+    left,
+    right,
+    loc,
+  };
+}
+
+/**
+ * Creates a literal node.
+ */
+function Literal(typePrefix, value, loc) {
+  return { type: typePrefix + 'Literal', value, loc };
+}
+  
+
+function VariableDeclaration(id, expression, loc) {
+  return {
+    type: 'VariableDeclaration',
+    id,
+    expression,
+    loc
+  }
+}
+
+function FunctionDeclaration(id, params, body, loc) {
+  return {
+    type: 'FunctionDeclaration',
+    id,
+    params,
+    body,
+    loc
+  }
+}
+
+%}
+ 
+%left '+'
+%left '*'
+  
+%%
+
+/**
+ * Main program
+ */
+Program 
+  : StatementList { $$ = { type: 'Program', body: $1 } }
+  ;
+
+StatementList
+  : Statement { $$ = [$1] }
+  | StatementList Statement { $1.push($2); $$ = $1 }
+  ;
+
+Statement
+  : FunctionDeclaration
+  | VariableDeclaration
+  | Expression
+  ;
+
+FunctionDeclaration
+  : FN Identifier LPAREN OptionalParameterList RPAREN ARROW Expression
+  { $$ = FunctionDeclaration($2, $4, $7, @$) }
+  ;
+
+/**
+ * OptionalParameterList.
+ */
+OptionalParameterList
+  : ParameterList
+  | /* empty */ { $$ = [] }
+  ;
+
+/**
+ * ParameterList.
+ */
+ParameterList
+  : Identifier { $$ = [$1] }
+  | ParameterList COMMA Identifier { $1.push($3); $$ = $1 }
+  ;
+
+VariableDeclaration
+  : LET Identifier ASSIGN Expression { $$ = VariableDeclaration($2, $4, @$) } 
+  ;
+
+BlockExpression
+  // : EmptyBlock
+  : LCURLY ExpressionList RCURLY { $$ = $2 }
+  ;
+
+ExpressionList
+  : Expression { $$ = [$1] }
+  | StatementList Expression { $1.push($2); $$ = $1 }
+  ;
+
+Expression
+  : Expression ADDITIVE_OPERATOR Expression { $$ = BinaryExpression($2, $1, $3, @$) }
+  /* | Expression '*' Expression { $$ = BinaryExpression('*', $1, $3, @$) } */
+  | LPAREN Expression RPAREN { $$ = $2 }
+  | BlockExpression
+  | CallExpression
+  | Literal 
+  ;
+
+// EmptyBlock
+//   : LCURLY RCURLY { $$ = [] }
+//   ;
+
+Literal
+  : StringLiteral
+  | NumericLiteral
+  // TODO Array literal
+  // TUPLE LITERAL
+  ;
+  
+StringLiteral
+  : STRING { $$ = Literal('String', $1, @$) }
+  ;
+
+NumericLiteral
+  : NUMBER { $$ = Literal('Numeric', Number($1), @$) }
+  ;
+
+/**
+ * Identifier.
+ */
+Identifier
+  : IDENTIFIER { $$ = { type: 'Identifier', value: $1, loc: @$ } }
+  ;
+
+  /**
+ * CallExpression.
+ */
+CallExpression
+  : Callee Arguments { $$ = { type: 'CallExpression', callee: $1, arguments: $2, loc: @$ } }
+  ;
+
+/**
+* Callee.
+*
+* Simple function call `foo();` or chained `foo()();`.
+*/
+Callee
+  : Identifier
+  | CallExpression
+  ;
+
+/**
+* Call expression arguments.
+*/
+Arguments
+  : LPAREN OptionalArgumentList RPAREN { $$ = $2 }
+  ;
+
+/**
+* OptionalArgumentList.
+*/
+OptionalArgumentList
+  : ArgumentList
+  | /* empty */ { $$ = [] }
+  ;
+
+/**
+* ArgumentList.
+*/
+ArgumentList
+  : Expression { $$ = [$1] }
+  | ArgumentList COMMA Expression { $$ = $1; $1.push($3) }
+  ;

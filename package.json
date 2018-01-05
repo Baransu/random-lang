@@ -1,0 +1,14 @@
+{
+  "name": "random-lang",
+  "version": "0.1.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "parser":
+      "syntax-cli --grammar grammars/random.bnf --lex grammars/random.lex --mode lalr1 -o parser.js --loc --file test.rnd",
+    "start": "node index.js"
+  },
+  "devDependencies": {
+    "syntax-cli": "^0.0.99"
+  }
+}

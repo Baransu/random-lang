@@ -1,0 +1,14 @@
+let a = 1
+
+fn a() -> "asdasd"
+
+fn simple() -> { 
+  1
+}
+
+fn advanced() -> {
+  let stuff = 1
+  1
+}
+
+let result = advanced()
